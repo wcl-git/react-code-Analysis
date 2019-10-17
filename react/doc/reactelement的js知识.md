@@ -17,6 +17,7 @@ isValidElement
 ```
 jsxDEV 和 jsx 区分开发环境和生产环境，返回 ReactElement 对象，是内部使用 api ，react 的 api 文档中不暴露，用于框架构建稳定使用，16.4 以后版本才有的方法
 createElement 是对两个环境都做了处理，对外暴露的 api。
+
 所以  createElement、 jsxDEV、 jsx 三者类似，但是我们只用 createElement 就是这个原因
 
 cloneAndReplaceKey 是修改元素的 key 值，其他属性保持一至，其实这个 api 可以完全被 cloneElement 替代。所以， 这个api 一般知识 react 内部使用。
@@ -26,9 +27,13 @@ isValidElement 判断是否是 react elenment
 ### 内部方法
 
 ReactElement 方法， 用于返回 reactelement  对象， 暴露的所有 api 最后调用的方法
+
 hasValidRef   这个函数是判断 ref 是否有效，返回 true false, 区分开发环境和生产环境 ，config 是监测的对象
+
 hasValidKey   这个函数是判断 react 组件 key 是否有效，返回 true false, 区分开发环境和生产环境
+
 defineKeyPropWarningGetter    定义了不合法的 key 抛出警告的提示信息， 开发环境才会抛出警告
+
 defineRefPropWarningGetter    定义了不合法的 ref 抛出警告的提示信息 开发环境才会抛出警告
 
 # ReactElement 用到的js基础知识
