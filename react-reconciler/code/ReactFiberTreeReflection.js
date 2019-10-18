@@ -102,8 +102,9 @@ function assertIsMounted(fiber) {
 // 函数名称直译：定位到用于 SlowPath 的当前 fiber， 
 // SlowPath 就是高优先级执行完之后在慢慢执行的事务
 export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
-  let alternate = fiber.alternate;
+  let alternate = fiber.alternate; 
   // 如果没有备用这个属性的fiber，直接返回当前 fiber
+  // 备份不存在 说明这个 fiber 就是当前执行的 fiber，
   if (!alternate) {
     // 如果没有备用的，那么我们只需要检查它是否已安装
     const state = isFiberMountedImpl(fiber);
@@ -116,31 +117,30 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
     }
     return fiber;
   }
+  // 如过备份存在，说明 fiber 是之前被高优先级事务中断的，等高优先级事务完成，现在要继续原来的的事务
   // 如果有两种可能的分支，我们将会循环找到根节点， 
   // 查看根指向的路径
   // 特殊情况。特殊处理
   let a = fiber;
   let b = alternate;
-  while (true) {
-    let parentA = a.return;
+  while (true) { // 循环查找
+    let parentA = a.return; // a.return 表示父节点
     let parentB = parentA ? parentA.alternate : null;
+    // 如果 findCurrentFiberUsingSlowPath 传入的 fiber 即没有父节点，也没有节点备份，退出循环
     if (!parentA || !parentB) {
       // We're at the root.
       break;
     }
-
-    // If both copies of the parent fiber point to the same child, we can
-    // assume that the child is current. This happens when we bailout on low
-    // priority: the bailed out fiber's child reuses the current child.
+    
+    // 完成返回的 子节点和 备份的子节点一致
     if (parentA.child === parentB.child) {
-      let child = parentA.child;
+      let child = parentA.child; // child 起始从 a 中开始
       while (child) {
-        if (child === a) {
-          // We've determined that A is the current branch.
-          assertIsMounted(parentA);
+        if (child === a) { // 如果当前 child 的指针指向 fiber
+          assertIsMounted(parentA);// 这里如果不是i 已经挂载的 则回抛出警告
           return fiber;
         }
-        if (child === b) {
+        if (child === b) { // 如果当前 child 的指针指向 alternate
           // We've determined that B is the current branch.
           assertIsMounted(parentA);
           return alternate;
@@ -180,6 +180,8 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
         }
         child = child.sibling;
       }
+      
+      // fiber 找不到就继续遍历 alternate
       if (!didFindChild) {
         // 搜索父B的子集合
         child = parentB.child;

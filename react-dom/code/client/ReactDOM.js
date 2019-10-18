@@ -1,29 +1,25 @@
-/**
- * Copyright (c) 2013-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * @flow
- */
+
 
 import type {ReactNodeList} from 'shared/ReactTypes';
-// TODO: This type is shared between the reconciler and ReactDOM, but will
-// eventually be lifted out to the renderer.
+
+// 这种类型在协调器和reactdom之间共享，但是
+//最终被提升到渲染器。
 import type {
   FiberRoot,
   Batch as FiberRootBatch,
 } from 'react-reconciler/src/ReactFiberRoot';
-import type {Container} from './ReactDOMHostConfig';
+
+
+import type {Container} from './ReactDOMHostConfig'; // 容器类型定义
 
 import '../shared/checkReact';
-import './ReactDOMClientInjection'; // reactdom 注入客户端
+import './ReactDOMClientInjection'; // reactdom 注入一些解析 dom 层级机构和一些事件插件
 
-import * as DOMRenderer from 'react-reconciler/inline.dom';
+import * as DOMRenderer from 'react-reconciler/inline.dom';  // react-reconciler 包，更新的内部机制
 import * as ReactPortal from 'shared/ReactPortal';
 import ExecutionEnvironment from 'fbjs/lib/ExecutionEnvironment';
-import * as ReactGenericBatching from 'events/ReactGenericBatching';
-import * as ReactControlledComponent from 'events/ReactControlledComponent';
+import * as ReactGenericBatching from 'events/ReactGenericBatching'; // 事件常规批次处理
+import * as ReactControlledComponent from 'events/ReactControlledComponent'; // 受控组件的事件
 import * as EventPluginHub from 'events/EventPluginHub';
 import * as EventPluginRegistry from 'events/EventPluginRegistry';
 import * as EventPropagators from 'events/EventPropagators';
@@ -35,9 +31,9 @@ import invariant from 'fbjs/lib/invariant';
 import lowPriorityWarning from 'shared/lowPriorityWarning';
 import warning from 'fbjs/lib/warning';
 
-import * as ReactDOMComponentTree from './ReactDOMComponentTree';
-import * as ReactDOMFiberComponent from './ReactDOMFiberComponent';
-import * as ReactDOMEventListener from '../events/ReactDOMEventListener';
+import * as ReactDOMComponentTree from './ReactDOMComponentTree'; // 组件dom 树
+import * as ReactDOMFiberComponent from './ReactDOMFiberComponent';  // 组件工作片段
+import * as ReactDOMEventListener from '../events/ReactDOMEventListener'; // 事件监听
 import {
   ELEMENT_NODE,
   COMMENT_NODE,
@@ -71,6 +67,7 @@ if (__DEV__) {
 
   topLevelUpdateWarnings = (container: DOMContainer) => {
     if (container._reactRootContainer && container.nodeType !== COMMENT_NODE) {
+      // 这里是返回最高优先级的 fiber 事务
       const hostInstance = DOMRenderer.findHostInstanceWithNoPortals(
         container._reactRootContainer._internalRoot.current,
       );
@@ -140,10 +137,8 @@ type Batch = FiberRootBatch & {
   then(onComplete: () => mixed): void,
   commit(): void,
 
-  // The ReactRoot constuctor is hoisted but the prototype methods are not. If
-  // we move ReactRoot to be above ReactBatch, the inverse error occurs.
-  // $FlowFixMe Hoisting issue.
-  _root: Root,
+ // ReactRoot 构造函数提升了，这里可以直接引用
+  _root: Root,  // ReactRoot 构造函数
   _hasChildren: boolean,
   _children: ReactNodeList,
 
@@ -151,7 +146,9 @@ type Batch = FiberRootBatch & {
   _didComplete: boolean,
 };
 
-// 定义一个分批处理  ReactBatch 构造函数
+// 定义一个批量处理  ReactBatch 构造函数
+// 这里我们看一下 ReactRoot 做了什么， 创建一个节点容器，把这个实例赋值给  this._internalRoot
+// 这里不能调用 ReactRoot 里面的 prototype 上的方法
 function ReactBatch(root: ReactRoot) {
   const expirationTime = DOMRenderer.computeUniqueAsyncExpiration(); // 该方法返回过期时间
   this._expirationTime = expirationTime;
@@ -165,6 +162,7 @@ function ReactBatch(root: ReactRoot) {
 }
 
 // render 方法，参数是 ReactNodeList，实例化一个 ReactWork， 调用事务更新，并返回 ReactWork 实例
+// ReactWork 实例主要干啥的呢，跳到 ReactWork 看一下逻辑
 ReactBatch.prototype.render = function(children: ReactNodeList) {
   invariant(
     this._defer,
@@ -172,22 +170,25 @@ ReactBatch.prototype.render = function(children: ReactNodeList) {
   );
   this._hasChildren = true;
   this._children = children;
-  const internalRoot = this._root._internalRoot;
+  const internalRoot = this._root._internalRoot; // 这里追溯源头，_internalRoot 来自 ReactRoot 里面
   const expirationTime = this._expirationTime;
   const work = new ReactWork(); // 实例一个 ReactWork
   // 调度主事务更新 root，里面调用 createUpdate，enqueueUpdate，scheduleWork 这三个方法。可以自己去仔细看
   DOMRenderer.updateContainerAtExpirationTime(  
     children,                 // ReactNodeList
-    internalRoot,             // 容器 OpaqueRoot
+    internalRoot,             // 容器 OpaqueRoot 内部节点
     null,                     // 父组件
     expirationTime,           // 到期时间
-    work._onCommit,           // 回调函数
+    work._onCommit,           // 回调函数, _onCommit 的 this 是 ReactBatch，因为  ReactWork 里面绑定了
   );
-  return work;
+  return work; // 这里作用是 执行该方法之后可以调到 ReactWork.prototype 上的方法
 };
+
 // 如果 this._didComplete 已经是一个函数的话，执行这个函数
-// 参数是一个函数，作用是 this._callbacks 指针指向 传入的参数这个函数
+// 参数是一个函数
+// 函数执行玩着后 this._callbacks 变成了 一个数组，数组元素是函数
 ReactBatch.prototype.then = function(onComplete: () => mixed) {
+  // 这里判断，已经完成了的话，直接执行 onComplete，并中断向下执行
   if (this._didComplete) {
     onComplete();
     return;
@@ -196,19 +197,19 @@ ReactBatch.prototype.then = function(onComplete: () => mixed) {
   if (callbacks === null) {
     callbacks = this._callbacks = [];
   }
-  callbacks.push(onComplete);
+  callbacks.push(onComplete);  // 把 函数 push 进数组中
 };
 
-// 分批提交函数，
+// 批提交函数
 ReactBatch.prototype.commit = function() {
-  const internalRoot = this._root._internalRoot; // 内部根节点
-  let firstBatch = internalRoot.firstBatch;  // 列表中第一批
+  const internalRoot = this._root._internalRoot; // 内部根节点，这里是 ReactRoot 函数里定义的
+  let firstBatch = internalRoot.firstBatch;  // firstBatch 是 DOMRenderer.createContainer 里面调用的 createFiberRoot 里面定义的一个值
   invariant(
     this._defer && firstBatch !== null,
     'batch.commit: Cannot commit a batch multiple times.',
   );
 
-  if (!this._hasChildren) { // 如果没有子节点，把接下来的事务清空，或者推后执行的事务清空，并停止继续向下执行
+  if (!this._hasChildren) { // 如果没有子节点，把接下来的事务清空，或者推后执行的事务清空，并停止向下执行
     // This batch is empty. Return.
     this._next = null;
     this._defer = false;
@@ -217,7 +218,7 @@ ReactBatch.prototype.commit = function() {
 
   let expirationTime = this._expirationTime; // 到期时间
 
-  // 确保这是列表中的第一批，
+  // 这里加的判断，就是为了确保提交的节点是列表中的第一批要处理的 fiber，
   if (firstBatch !== this) {
     // 确保我们刷新它，不刷新其他批次
     if (this._hasChildren) {
@@ -255,7 +256,7 @@ ReactBatch.prototype.commit = function() {
 
   // 将下一批处理的子节点加入更新队列中
   if (firstBatch !== null && firstBatch._hasChildren) {
-    firstBatch.render(firstBatch._children);
+    firstBatch.render(firstBatch._children); // 调用 ReactBatch.prototype.render
   }
 };
 // 批次处理完之后的回调
@@ -282,12 +283,12 @@ type Work = {
   _didCommit: boolean,
 };
 
-// 承担渲染工作
+// 一些回调函数
 function ReactWork() {
   this._callbacks = null;
   this._didCommit = false;
-  // TODO: Avoid need to bind by replacing callbacks in the update queue with
-  // list of Work objects.
+
+  // 通过将更新队列中的回调替换为工作对象列表
   this._onCommit = this._onCommit.bind(this);
 }
 
@@ -301,7 +302,7 @@ ReactWork.prototype.then = function(onCommit: () => mixed): void {
   if (callbacks === null) {
     callbacks = this._callbacks = [];
   }
-  callbacks.push(onCommit);
+  callbacks.push(onCommit); // 把回调函数
 };
 
 // 处理完成之后的回调
@@ -340,7 +341,7 @@ type Root = {
   _internalRoot: FiberRoot,
 };
 
-// ReactBatch 的传入的函数参数，即是批处理的事务集合
+// 这里是 ReactRoot 创建容器节点，并赋值给 this._internalRoot 存起来
 function ReactRoot(container: Container, isAsync: boolean, hydrate: boolean) {
   const root = DOMRenderer.createContainer(container, isAsync, hydrate);
   this._internalRoot = root;
@@ -361,8 +362,9 @@ ReactRoot.prototype.render = function(
   if (callback !== null) {
     work.then(callback);
   }
+  // 调度主事务更新 root，里面调用 createUpdate，enqueueUpdate，scheduleWork 这三个方法。可以自己去仔细看
   DOMRenderer.updateContainer(children, root, null, work._onCommit);
-  return work;
+  return work;  // 这里作用是 执行该方法之后可以调到 ReactWork.prototype 上的方法
 };
 
 // 卸载的回调方法，依然是更新对应的节点，返回一个 ReactWork实例
@@ -377,10 +379,10 @@ ReactRoot.prototype.unmount = function(callback: ?() => mixed): Work {
     work.then(callback);
   }
   DOMRenderer.updateContainer(null, root, null, work._onCommit);
-  return work;
+  return work; // 这里作用是 执行该方法之后可以调到 ReactWork.prototype 上的方法
 };
 
-// 有父节点的上下文的更新，返回一个 ReactWork实例
+// 有父节点的上下文的更新，返回一个 ReactWork实例，这个方法是 ReactDOM.hydrate()调用的主要方法
 ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function(
   parentComponent: ?React$Component<any, any>,
   children: ReactNodeList,
@@ -395,8 +397,9 @@ ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function(
   if (callback !== null) {
     work.then(callback);
   }
+  // 调度主事务更新 容器，里面调用 createUpdate，enqueueUpdate，scheduleWork 这三个方法。可以自己去仔细看
   DOMRenderer.updateContainer(children, root, parentComponent, work._onCommit);
-  return work;
+  return work;  // 这里作用是 执行该方法之后可以调到 ReactWork.prototype 上的方法
 };
 
 // 返回一个 ReactBatch 实例
@@ -464,18 +467,20 @@ function shouldHydrateDueToLegacyHeuristic(container) {
   );
 }
 
-ReactGenericBatching.injection.injectRenderer(DOMRenderer);
+ReactGenericBatching.injection.injectRenderer(DOMRenderer); // 事件
 
 let warnedAboutHydrateAPI = false;
 
-// 返回 ReactRoot 实例
+// 返回 ReactRoot 实例 为  legacyRenderSubtreeIntoContainer 方法调用
 function legacyCreateRootFromDOMContainer(
   container: DOMContainer,
   forceHydrate: boolean,
 ): Root {
   const shouldHydrate =
-    forceHydrate || shouldHydrateDueToLegacyHeuristic(container);
-  // First clear any existing content.
+    forceHydrate || shouldHydrateDueToLegacyHeuristic(container); // 判断是否需要保留原子节点
+  // 首先清空容器内的所有节点
+  // 如果调用 ReactDOM.hydrate()来创建 dom 的话，下面逻辑是不会进去的。
+  // ReactDOM.render() 时候才会去删除所有节点
   if (!shouldHydrate) {
     let warned = false;
     let rootSibling;
@@ -509,8 +514,9 @@ function legacyCreateRootFromDOMContainer(
       );
     }
   }
-  // Legacy roots are not async by default.
+  // 默认渲染是同步
   const isAsync = false;
+  // 返回 ReactRoot 实例，作用就是创建一个 dom 节点作为根节点
   return new ReactRoot(container, isAsync, shouldHydrate);
 }
 
@@ -534,29 +540,31 @@ function legacyRenderSubtreeIntoContainer(
 
   // TODO: Without `any` type, Flow says "Property cannot be accessed on any
   // member of intersection type." Whyyyyyy.
-  let root: Root = (container._reactRootContainer: any);
+  let root: Root = (container._reactRootContainer: any); // 
   if (!root) {
-    // Initial mount
+    // 首次挂载  !root 内的就是初次渲染的逻辑
+    // root 是 legacyCreateRootFromDOMContainer 生成一个 fiber 对象
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
       forceHydrate,
     );
     if (typeof callback === 'function') {
+      // 回调函数封装
       const originalCallback = callback;
       callback = function() {
         const instance = DOMRenderer.getPublicRootInstance(root._internalRoot);
         originalCallback.call(instance);
       };
     }
-    // Initial mount should not be batched.
+    // 首次渲染时候不用批量处理 挂在
     DOMRenderer.unbatchedUpdates(() => {
-      if (parentComponent != null) {
+      if (parentComponent != null) { //  这里是 ReactDOM.hydrate 使用，一般用于服务器端渲染
         root.legacy_renderSubtreeIntoContainer(
           parentComponent,
           children,
           callback,
         );
-      } else {
+      } else { // 这里是 ReactDOM.render 使用
         root.render(children, callback);
       }
     });
@@ -569,16 +577,17 @@ function legacyRenderSubtreeIntoContainer(
       };
     }
     // Update
-    if (parentComponent != null) {
+    if (parentComponent != null) { //  这里是 ReactDOM.hydrate 使用，一般用于服务器端渲染
       root.legacy_renderSubtreeIntoContainer(
         parentComponent,
         children,
         callback,
       );
-    } else {
+    } else {  // 这里是 ReactDOM.render 使用
       root.render(children, callback);
     }
   }
+  // 返回 ReactRoot 实例生成fiber对象
   return DOMRenderer.getPublicRootInstance(root._internalRoot);
 }
 
@@ -630,7 +639,7 @@ const ReactDOM: Object = {
 
     return DOMRenderer.findHostInstance(componentOrElement);
   },
-
+  // 还拽特
   hydrate(element: React$Node, container: DOMContainer, callback: ?Function) {
     // TODO: throw or warn if we couldn't hydrate?
     return legacyRenderSubtreeIntoContainer(
@@ -758,7 +767,7 @@ const ReactDOM: Object = {
   unstable_flushControlled: DOMRenderer.flushControlled,
 
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
-    // For TapEventPlugin which is popular in open source
+    // 因为 开源中流行 tapeventplugin
     EventPluginHub,
     // Used by test-utils
     EventPluginRegistry,
@@ -773,6 +782,7 @@ type RootOptions = {
   hydrate?: boolean,
 };
 
+// 不稳定版本创建根节点，看源码可以忽略它
 ReactDOM.unstable_createRoot = function createRoot(
   container: DOMContainer,
   options?: RootOptions,

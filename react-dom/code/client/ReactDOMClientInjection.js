@@ -17,14 +17,13 @@ import SelectEventPlugin from '../events/SelectEventPlugin';
 import SimpleEventPlugin from '../events/SimpleEventPlugin';
 
 /**
- * Inject modules for resolving DOM hierarchy and plugin ordering.
- */
+ * 注入用于解析dom层次结构和插件顺序的模块。
+*/
 EventPluginHub.injection.injectEventPluginOrder(DOMEventPluginOrder);
 EventPluginUtils.injection.injectComponentTree(ReactDOMComponentTree);
 
 /**
- * Some important event plugins included by default (without having to require
- * them).
+ * 默认情况下包括一些重要的事件插件（不需要他们）
  */
 EventPluginHub.injection.injectEventPluginsByName({
   SimpleEventPlugin: SimpleEventPlugin,
