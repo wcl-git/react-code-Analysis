@@ -90,7 +90,7 @@ function getContextForSubtree(
     return emptyObject;
   }
 
-  const fiber = ReactInstanceMap.get(parentComponent);
+  const fiber = ReactInstanceMap.get(parentComponent); // 这里返回 parentComponent._reactInternalFiber;
   const parentContext = findCurrentUnmaskedContext(fiber);
   return isContextProvider(fiber)
     ? processChildContext(fiber, parentContext)
@@ -176,9 +176,9 @@ export function updateContainerAtExpirationTime(
   return scheduleRootUpdate(current, element, expirationTime, callback);
 }
 
-// 找到主节点实例
+// 找到fiber 主节点的dom
 function findHostInstance(component: Object): PublicInstance | null {
-  const fiber = ReactInstanceMap.get(component);
+  const fiber = ReactInstanceMap.get(component);  // 这里返回 parentComponent._reactInternalFiber;
   if (fiber === undefined) {
     if (typeof component.render === 'function') {
       invariant(false, 'Unable to find node on an unmounted component.');
@@ -190,7 +190,9 @@ function findHostInstance(component: Object): PublicInstance | null {
       );
     }
   }
-  const hostFiber = findCurrentHostFiber(fiber); // 找到主事务 fiber，
+  // 找到当前 finber 的 改变的节点，
+  // 当前工作单位的根节点，就是 dom 改变的最小父节点
+  const hostFiber = findCurrentHostFiber(fiber);
   if (hostFiber === null) {
     return null;
   }

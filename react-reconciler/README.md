@@ -1,6 +1,8 @@
  这部分 ReactFiberReconciler 是核心
  先把 shared 里面的东西干掉，只看核心逻辑
 
+ 注意：源码里 有hostxxx字段的名称，一般都是指真实 dom 相关
+
  stack-reconciler 下的 react 是怎么工作的？
 
  代码中创建或更新一些元素，react 会根据这些元素创建或者更新 virtual dom，然后 react 根据更新前后的 virtual dom区别，去修改真正的 DOM。

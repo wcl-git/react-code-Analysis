@@ -38,9 +38,9 @@ import {
   cloneElementWithValidation,
 } from './ReactElementValidator';
 import ReactDebugCurrentFrame from './ReactDebugCurrentFrame'; // 开发环境的调试用。暂时可以不用关心
-
+// 下面对象每一项就是一个 api
 const React = {
-  Children: {
+  Children: { 
     map,
     forEach,
     count,
@@ -67,6 +67,7 @@ const React = {
 
   version: ReactVersion,
 
+  // 这个暂时忽略
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
     ReactCurrentOwner,
     // Used by renderers to avoid bundling object-assign twice in UMD bundles:

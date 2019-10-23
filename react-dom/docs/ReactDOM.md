@@ -2,7 +2,7 @@
 
 ### ReactBatch
 
-`ReactRoot.prototype.createBatch` 调用 ReactBatch
+`ReactRoot.prototype.createBatch` 调用 ReactBatch，
 
 ReactBatch          定义一个批量处理构造器， 参数是一个函数， 默认是 ReactRoot 函数
 

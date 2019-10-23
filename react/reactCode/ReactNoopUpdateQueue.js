@@ -77,7 +77,7 @@ const ReactNoopUpdateQueue = {
   /**
    * 设置 state 的子集 这只是因为 _pendingState 是内部的。
    * 这提供了一种合并策略，但深层属性无法使用该策略，这会造成混淆。意思就是，state 层级有深层嵌套，将不能使用合并策略
-   * 注意: 说明： PendingState 状态 或合并过程中，都不要使用 enqueueSetState 这个方法
+   * 注意: 说明： PendingState 状态或合并过程中，都不要使用 enqueueSetState 这个方法
    * publicInstance 应该重新渲染的实例.
    * partialState 下一个要与 state 合并的那部分 state.
    * callback 组件更新后回调函数

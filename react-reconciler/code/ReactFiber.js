@@ -60,39 +60,31 @@ if (__DEV__) {
   }
 }
 
-// A Fiber is work on a Component that needs to be done or was done. There can
-// be more than one per component.
+
 // 定义 Fiber 的类型， fiber ：最小工作单元
 export type Fiber = {|
-  // These first fields are conceptually members of an Instance. This used to
-  // be split into a separate type and intersected with the other Fiber fields,
-  // but until Flow fixes its intersection bugs, we've merged them into a
-  // single type.
 
-  // An Instance is shared between all versions of a component. We can easily
-  // break this out into a separate object to avoid copying so much to the
-  // alternate versions of the tree. We put this on a single object for now to
-  // minimize the number of objects created during the initial render.
-
-  // 定义 fiber 的标签类型
+  // 定义 fiber 的不同组件类型的工作码，目前是 1 到 16 的数字
   tag: TypeOfWork,
 
   // 子项的唯一标识符.
   key: null | string,
 
-  // fiber 类型可以是 function/class/module
+  // fiber 类型可以是 function/class
   type: any,
 
-  // fiber的 状态节点
+  // 跟当前Fiber相关本地状态（比如浏览器环境就是DOM节点）
   stateNode: any,
 
   // 在概念上与堆栈帧的返回地址相同
-  // 当前fiber的父级fiber实例
+  // 指向他在Fiber节点树中的`parent`，用来在处理完这个节点之后向上返回
   return: Fiber | null,
 
-  // 子Fiber
+  // 单链表树结构
+  // 指向自己的第一个子节点
   child: Fiber | null,
-  // 兄弟fiber
+  // 指向自己的兄弟结构
+  // 兄弟节点的return指向同一个父节点
   sibling: Fiber | null,
   // 索引
   index: number,
@@ -100,14 +92,15 @@ export type Fiber = {|
   // 上次用于附加此节点的ref
   ref: null | (((handle: mixed) => void) & {_stringRef: ?string}) | RefObject,
 
-  pendingProps: any, // 当前处理过程中的组件 props 对象
-  memoizedProps: any, // 缓存的之前组件props对象, 便于恢复
+  pendingProps: any, // 新的变动带来的新的 props
+
+  memoizedProps: any, // 缓存上一次渲染完成之后的props, 便于恢复
 
   // 状态更新和回调的队列
   // updateQueue是一个单向链表，firstUpdate和lastUpdate分别指向链表的头部和尾部。记录fiber对应的React Element的state变化
   updateQueue: UpdateQueue<any> | null,
 
-  memoizedState: any,  // 缓存的之前的 state， 用于创建输出的状态
+  memoizedState: any,  // 缓存上一次渲染的时候的state， 用于创建输出的状态
 
   mode: TypeOfMode, // fiber 节点类型
 
@@ -116,18 +109,23 @@ export type Fiber = {|
   // effectTag就是记录这种操作，在源码中以二进制的形式保存，因此可以记录多种操作
   effectTag: TypeOfSideEffect,
 
-  // Singly linked list fast path to the next fiber with side-effects.
+  // 单链表用来快速查找下一个side effect
   nextEffect: Fiber | null,
 
-  // The first and last fiber with side-effect within this subtree. This allows
-  // us to reuse a slice of the linked list when we reuse the work done within
-  // this fiber.
+  // 子树中第一个side effect
   firstEffect: Fiber | null,
+
+  // 子树中最后一个side effect
   lastEffect: Fiber | null,
 
   // 到期时间， 本质上是fiber work执行的优先级
+  // 代表任务在未来的哪个时间点应该被完成
+  // 不包括他的子树产生的任务
   expirationTime: ExpirationTime,
 
+  // 在Fiber树更新的过程中，每个Fiber都会有一个跟其对应的Fiber
+  // 我们称他为`current <==> workInProgress`
+  // 在渲染完成之后他们会交换位置
   // fiber 在计算状态和等待状态之间进行切换，需要记住的信息
   // 一个React组件有current fiber和alternate fiber，alternate fiber也被称为work in progress fiber
   // 当组件第一次render时构建的fiber tree为current，接下来当组件状态改变时新构建的fiber tree称为work in progress，代表将来的新状态。
@@ -137,30 +135,16 @@ export type Fiber = {|
 
   alternate: Fiber | null,
 
-  // Time spent rendering this Fiber and its descendants for the current update.
-  // This tells us how well the tree makes use of sCU for memoization.
-  // This field is only set when the enableProfilerTimer flag is enabled.
+  // 下面是调试相关的，收集每个Fiber和子树渲染时间的
+
   actualDuration?: number,  // 实际持续时间 可选的参数 ？就是可选的意思 ：后是类型
 
-  // If the Fiber is currently active in the "render" phase,
-  // This marks the time at which the work began.
-  // This field is only set when the enableProfilerTimer flag is enabled.
   actualStartTime?: number, // 实际开始时间 可选的参数 ？就是可选的意思 ：后是类型
 
-  // Duration of the most recent render time for this Fiber.
-  // This value is not updated when we bailout for memoization purposes.
-  // This field is only set when the enableProfilerTimer flag is enabled.
   selfBaseTime?: number, //  可选的参数 ？就是可选的意思 ：后是类型
 
-  // Sum of base times for all descedents of this Fiber.
-  // This value bubbles up during the "complete" phase.
-  // This field is only set when the enableProfilerTimer flag is enabled.
   treeBaseTime?: number, 
 
-  // Conceptual aliases
-  // workInProgress : Fiber ->  alternate The alternate used for reuse happens
-  // to be the same as work in progress.
-  // __DEV__ only
   _debugID?: number,  
   _debugSource?: Source | null, 
   _debugOwner?: Fiber | null, 
@@ -335,7 +319,7 @@ export function createWorkInProgress(
   return workInProgress;
 }
 
-// 新建一个记住主线程 HostRootFiber
+// 新建一个fiber 的根节点容器
 export function createHostRootFiber(isAsync: boolean): Fiber {
   const mode = isAsync ? AsyncMode | StrictMode : NoContext;
   return createFiber(HostRoot, null, null, mode);

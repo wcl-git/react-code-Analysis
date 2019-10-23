@@ -229,37 +229,46 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
   return alternate;
 }
 
-// 记忆当前本地务，为高优先级事务完成后，继续执行
+// 这个函数作用是获取 改变的节点
 export function findCurrentHostFiber(parent: Fiber): Fiber | null {
-  const currentParent = findCurrentFiberUsingSlowPath(parent);
+  //  这里判断 parent 备份 alternate 这个字段是否为空，如果有备份这个字段不为空，则返回这个 fiber
+  // 目的就是确保 fiber 是已经完成的fiber
+  const currentParent = findCurrentFiberUsingSlowPath(parent); 
   if (!currentParent) {
     return null;
   }
 
-  // Next we'll drill down this component to find the first HostComponent/Text.
+  // 接下来，我们将深入研究此组件以找到第一个hostcomponent/text。
+
   let node: Fiber = currentParent;
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText) {
+    if (node.tag === HostComponent || node.tag === HostText) { // HostComponent 5， HostText 6， 优先级
       return node;
-    } else if (node.child) {
+    } else if (node.child) { // 节点有第一个子节点，赋值继续循环
       node.child.return = node;
       node = node.child;
       continue;
     }
+    // 第一次循环没有走上面两个条件，即没有子节点，且子节点的 tag 优先级 不是 6 或 5
+    // 这里全等的意思是 node 和 currentParent 对象是指向同一个实例地址
     if (node === currentParent) {
       return null;
     }
+    // 如果当前节点没有兄弟节点，向上找父级
     while (!node.sibling) {
+      // 父节点不存在或者已经遍历到 currentParent 就停止
       if (!node.return || node.return === currentParent) {
         return null;
       }
       node = node.return;
     }
+    // 如果有兄弟节点。继续向下遍历
     node.sibling.return = node.return;
     node = node.sibling;
   }
   // Flow needs the return null here, but ESLint complains about it.
   // eslint-disable-next-line no-unreachable
+  // 这里的返回只是解决 flow 的语法问题，其实没有任何意义
   return null;
 }
 // 记忆 当前 NoPortals 事务，待高优先级事务完成后继续的事务

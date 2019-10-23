@@ -343,7 +343,11 @@ type Root = {
 
 // 这里是 ReactRoot 创建容器节点，并赋值给 this._internalRoot 存起来
 function ReactRoot(container: Container, isAsync: boolean, hydrate: boolean) {
-  const root = DOMRenderer.createContainer(container, isAsync, hydrate);
+  // createContainer 分别调用 createFiberRoot 方法
+  // createFiberRoot 调用 createHostRootFiber
+  // createHostRootFiber 调用 createFiber
+  // createFiber 调用 FiberNode
+  const root = DOMRenderer.createContainer(container, isAsync, hydrate); // 新建一个事务根节点
   this._internalRoot = root;
 }
 
@@ -521,12 +525,13 @@ function legacyCreateRootFromDOMContainer(
 }
 
 // 返回根节点实例
+// 如果 parentComponent 存在，则 container 会挂载在 parentComponent 上
 function legacyRenderSubtreeIntoContainer(
-  parentComponent: ?React$Component<any, any>,
-  children: ReactNodeList,
-  container: DOMContainer,
-  forceHydrate: boolean,
-  callback: ?Function,
+  parentComponent: ?React$Component<any, any>, // 要挂载的父节点
+  children: ReactNodeList,       // 要挂在的子节点
+  container: DOMContainer,       // 子节点 children 的容器节点
+  forceHydrate: boolean,         // 是否合并，通常是 false， 后端渲染 hydrate 时候是 true
+  callback: ?Function,           // 回调函数
 ) {
   // TODO: Ensure all entry points contain this check
   invariant(
@@ -540,7 +545,7 @@ function legacyRenderSubtreeIntoContainer(
 
   // TODO: Without `any` type, Flow says "Property cannot be accessed on any
   // member of intersection type." Whyyyyyy.
-  let root: Root = (container._reactRootContainer: any); // 
+  let root: Root = (container._reactRootContainer: any); // 这里就是为了解决 flow 报错，原来Facebook 也会遇见这种问题，阿哈哈哈哈，其实就是一个变量定义
   if (!root) {
     // 首次挂载  !root 内的就是初次渲染的逻辑
     // root 是 legacyCreateRootFromDOMContainer 生成一个 fiber 对象
@@ -556,7 +561,7 @@ function legacyRenderSubtreeIntoContainer(
         originalCallback.call(instance);
       };
     }
-    // 首次渲染时候不用批量处理 挂在
+    // 因为这是初次渲染，需要尽快完成。
     DOMRenderer.unbatchedUpdates(() => {
       if (parentComponent != null) { //  这里是 ReactDOM.hydrate 使用，一般用于服务器端渲染
         root.legacy_renderSubtreeIntoContainer(
@@ -608,8 +613,9 @@ function createPortal(
 
 // 定义 ReactDOM 对象
 const ReactDOM: Object = {
-  createPortal,
+  createPortal,  // 创建一个 Portal 类型组件
 
+  // 获取真实DOM
   findDOMNode(
     componentOrElement: Element | ?React$Component<any, any>,
   ): null | Element | Text {
@@ -637,9 +643,10 @@ const ReactDOM: Object = {
       return (componentOrElement: any);
     }
 
-    return DOMRenderer.findHostInstance(componentOrElement);
+    return DOMRenderer.findHostInstance(componentOrElement); // 找到 fiber 主节点的dom
   },
-  // 还拽特
+
+  // 还拽特, 一般用于服务器端渲染
   hydrate(element: React$Node, container: DOMContainer, callback: ?Function) {
     // TODO: throw or warn if we couldn't hydrate?
     return legacyRenderSubtreeIntoContainer(
@@ -651,6 +658,7 @@ const ReactDOM: Object = {
     );
   },
 
+  // 常用的 render
   render(
     element: React$Element<any>,
     container: DOMContainer,
@@ -665,6 +673,7 @@ const ReactDOM: Object = {
     );
   },
 
+  // 试验性 api 不关心
   unstable_renderSubtreeIntoContainer(
     parentComponent: React$Component<any, any>,
     element: React$Element<any>,
@@ -684,6 +693,7 @@ const ReactDOM: Object = {
     );
   },
 
+  // 从DOM中删除已安装(mounted) React 组件，并清除其 event handle 和 state
   unmountComponentAtNode(container: DOMContainer) {
     invariant(
       isValidContainer(container),
@@ -703,6 +713,7 @@ const ReactDOM: Object = {
       }
 
       // Unmount should not be batched.
+      // 因为这需要尽快完成
       DOMRenderer.unbatchedUpdates(() => {
         legacyRenderSubtreeIntoContainer(null, null, container, false, () => {
           container._reactRootContainer = null;
@@ -740,8 +751,7 @@ const ReactDOM: Object = {
     }
   },
 
-  // Temporary alias since we already shipped React 16 RC with it.
-  // TODO: remove in React 17.
+  // 17 版本将移除，所以不用关心
   unstable_createPortal(...args) {
     if (!didWarnAboutUnstableCreatePortal) {
       didWarnAboutUnstableCreatePortal = true;
@@ -762,6 +772,7 @@ const ReactDOM: Object = {
 
   unstable_interactiveUpdates: DOMRenderer.interactiveUpdates,
 
+  // 同步刷新，作用就是 提高某一个自组建的渲染 优先级
   flushSync: DOMRenderer.flushSync,
 
   unstable_flushControlled: DOMRenderer.flushControlled,
