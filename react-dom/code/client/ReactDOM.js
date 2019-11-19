@@ -2,8 +2,6 @@
 
 import type {ReactNodeList} from 'shared/ReactTypes';
 
-// 这种类型在协调器和reactdom之间共享，但是
-//最终被提升到渲染器。
 import type {
   FiberRoot,
   Batch as FiberRootBatch,

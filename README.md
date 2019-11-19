@@ -42,7 +42,7 @@ react-dom 和 react-reconciler 紧密关联的。
  
  主要分析 react 从生成 虚拟dom 到 真实 dom 过程，react 虚拟dom 的更新 及对应更新 dom，这个主要逻辑
 
- 要了解上 main逻辑，只需关心三个文件夹代码，  react  react-dom    react-reconciler
+ 要了解上 主要逻辑，只需关心几个文件夹代码，  react、 react-dom、 react-reconciler、react-scheduler
 
  react ： react元素、组件等对象生成即定义
 
