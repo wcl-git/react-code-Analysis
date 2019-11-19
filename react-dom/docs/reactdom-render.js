@@ -1,5 +1,6 @@
 //  这里是reactdom.render 的源码调用的重要方法，
 // DOMRenderer.xxxx 的方法都复制在当前 js 中，为了不影响大家感官，DOMRenderer.没有去掉，
+// 代码解析到 scheduleWork ， scheduleWork包含的代码 是更新的逻辑，由于这里逻辑很多，另外一个js文件
 
 // 常用的 render api
 render(
@@ -16,7 +17,7 @@ render(
   );
 }
 
-// 返回根节点实例
+// 按一定规律将子节点渲染进容器内
 // 如果 parentComponent 存在，则 container 会挂载在 parentComponent 上
 function legacyRenderSubtreeIntoContainer(
   parentComponent: ?React$Component<any, any>, // 要挂载的父节点
@@ -40,6 +41,7 @@ function legacyRenderSubtreeIntoContainer(
   if (!root) {
     // 首次挂载  !root 内的就是初次渲染的逻辑
     // root 是 legacyCreateRootFromDOMContainer 生成一个 fiber 对象
+    // 函数字面意思 在 dom 容器中安规定创建根节点，说白了就是在html 节点上增加子节点 dom
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
       forceHydrate,
@@ -394,7 +396,6 @@ function FiberNode(
 }
 
 // 更新容器
-
 function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -579,7 +580,7 @@ function scheduleRootUpdate(
   }
   enqueueUpdate(current, update, expirationTime); // 三个参数，第一个是当前 fiber， 第二个是更新的集合，第三个是当前 fiber 到期时间
 
-  scheduleWork(current, expirationTime); // 调度的工作，第一个参数是 当前 fiber， 第二个是到期时间
+  scheduleWork(current, expirationTime); // 调度的工作，第一个参数是 当前 fiber， 第二个是到期时间，生命周期运行
   return expirationTime;
 }
 
@@ -737,151 +738,8 @@ function appendUpdateToQueue<State>(
   }
 }
 
+// scheduleWork 包含的代码 是更新的逻辑，由于这里逻辑很多，另外一个js文件
+// 组件运行逻辑,这里逻辑就是生命周期，这是一大块
 
-// 组件运行逻辑
-function scheduleWork(fiber: Fiber, expirationTime: ExpirationTime) {
-  recordScheduleUpdate();
 
-  if (__DEV__) {
-    if (fiber.tag === ClassComponent) {
-      const instance = fiber.stateNode;
-      warnAboutInvalidUpdates(instance);
-    }
-  }
-
-  let node = fiber;
-  while (node !== null) {
-    // Walk the parent path to the root and update each node's
-    // expiration time.
-    // 将父路径遍历到根并更新每个节点的，过期时间。
-    if (
-      node.expirationTime === NoWork ||
-      node.expirationTime > expirationTime
-    ) {
-      node.expirationTime = expirationTime;
-    }
-    if (node.alternate !== null) {
-      if (
-        node.alternate.expirationTime === NoWork ||
-        node.alternate.expirationTime > expirationTime
-      ) {
-        node.alternate.expirationTime = expirationTime;
-      }
-    }
-    if (node.return === null) {
-      if (node.tag === HostRoot) {
-        const root: FiberRoot = (node.stateNode: any);
-        if (
-          !isWorking &&
-          nextRenderExpirationTime !== NoWork &&
-          expirationTime < nextRenderExpirationTime
-        ) {
-          // This is an interruption. (Used for performance tracking.)
-          interruptedBy = fiber;
-          resetStack();
-        }
-        markPendingPriorityLevel(root, expirationTime);
-        const nextExpirationTimeToWorkOn = findNextPendingPriorityLevel(root);
-        if (
-          // If we're in the render phase, we don't need to schedule this root
-          // for an update, because we'll do it before we exit...
-          !isWorking ||
-          isCommitting ||
-          // ...unless this is a different root than the one we're rendering.
-          nextRoot !== root
-        ) {
-          requestWork(root, nextExpirationTimeToWorkOn);
-        }
-        if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
-          invariant(
-            false,
-            'Maximum update depth exceeded. This can happen when a ' +
-              'component repeatedly calls setState inside ' +
-              'componentWillUpdate or componentDidUpdate. React limits ' +
-              'the number of nested updates to prevent infinite loops.',
-          );
-        }
-      } else {
-        if (__DEV__) {
-          if (fiber.tag === ClassComponent) {
-            warnAboutUpdateOnUnmounted(fiber);
-          }
-        }
-        return;
-      }
-    }
-    node = node.return;
-  }
-}
-
-// 重置堆栈
-function resetStack() {
-  if (nextUnitOfWork !== null) {
-    let interruptedWork = nextUnitOfWork.return;
-    while (interruptedWork !== null) {
-      unwindInterruptedWork(interruptedWork);
-      interruptedWork = interruptedWork.return;
-    }
-  }
-
-  if (__DEV__) {
-    ReactStrictModeWarnings.discardPendingWarnings();
-    checkThatStackIsEmpty();
-  }
-
-  nextRoot = null;
-  nextRenderExpirationTime = NoWork;
-  nextLatestTimeoutMs = -1;
-  nextRenderIsExpired = false;
-  nextUnitOfWork = null;
-
-  isRootReadyForCommit = false;
-}
-
-function markPendingPriorityLevel(
-  root: FiberRoot,
-  expirationTime: ExpirationTime,
-): void {
-  if (enableSuspense) {
-    // Update the latest and earliest pending times
-    const earliestPendingTime = root.earliestPendingTime;
-    if (earliestPendingTime === NoWork) {
-      // No other pending updates.
-      root.earliestPendingTime = root.latestPendingTime = expirationTime;
-    } else {
-      if (earliestPendingTime > expirationTime) {
-        // This is the earliest pending update.
-        root.earliestPendingTime = expirationTime;
-      } else {
-        const latestPendingTime = root.latestPendingTime;
-        if (latestPendingTime < expirationTime) {
-          // This is the latest pending update
-          root.latestPendingTime = expirationTime;
-        }
-      }
-    }
-  }
-}
-
-function findNextPendingPriorityLevel(root: FiberRoot): ExpirationTime {
-  if (enableSuspense) {
-    const earliestSuspendedTime = root.earliestSuspendedTime;
-    const earliestPendingTime = root.earliestPendingTime;
-    if (earliestSuspendedTime === NoWork) {
-      // Fast path. There's no suspended work.
-      return earliestPendingTime;
-    }
-
-    // First, check if there's known pending work.
-    if (earliestPendingTime !== NoWork) {
-      return earliestPendingTime;
-    }
-
-    // Finally, if a suspended level was pinged, work on that. Otherwise there's
-    // nothing to work on.
-    return root.latestPingedTime;
-  } else {
-    return root.current.expirationTime;
-  }
-}
 

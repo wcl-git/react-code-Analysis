@@ -146,7 +146,7 @@ type Batch = FiberRootBatch & {
   _didComplete: boolean,
 };
 
-// 定义一个批量处理  ReactBatch 构造函数
+// 定义一个批量处理  ReactBatch 构造函数， 这个函数不是很重要
 // 这里我们看一下 ReactRoot 做了什么， 创建一个节点容器，把这个实例赋值给  this._internalRoot
 // 这里不能调用 ReactRoot 里面的 prototype 上的方法
 function ReactBatch(root: ReactRoot) {
@@ -343,7 +343,7 @@ type Root = {
 
 // 这里是 ReactRoot 创建容器节点，并赋值给 this._internalRoot 存起来
 function ReactRoot(container: Container, isAsync: boolean, hydrate: boolean) {
-  // createContainer 分别调用 createFiberRoot 方法
+  // createContainer 调用 createFiberRoot
   // createFiberRoot 调用 createHostRootFiber
   // createHostRootFiber 调用 createFiber
   // createFiber 调用 FiberNode

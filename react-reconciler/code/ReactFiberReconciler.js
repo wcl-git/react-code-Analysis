@@ -14,7 +14,7 @@ import type {
   TextInstance,
   Container,
   PublicInstance,
-} from './ReactFiberHostConfig'; // 这里其实什么也没有，目测是为以后预留
+} from './ReactFiberHostConfig'; // 这里其实什么也没有，目测是为以后预留，正常编译会报错，但是 引用了 fbjs 包
 import type {ReactNodeList} from 'shared/ReactTypes';
 import type {ExpirationTime} from './ReactFiberExpirationTime';
 
@@ -29,7 +29,7 @@ import getComponentName from 'shared/getComponentName';
 import invariant from 'fbjs/lib/invariant';
 import warning from 'fbjs/lib/warning';
 
-import {getPublicInstance} from './ReactFiberHostConfig'; // 这里其实什么也没有，目测是为以后预留
+import {getPublicInstance} from './ReactFiberHostConfig'; // 这里其实什么也没有，正常编译会报错，但是 引用了 fbjs 包
 import {
   findCurrentUnmaskedContext,
   isContextProvider,
