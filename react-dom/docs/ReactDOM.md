@@ -136,7 +136,7 @@ function findHostInstance(component: Object): PublicInstance | null {
 在reconciliation期间，会执行其他活动包括调用生命周期方法或更新引用等，所有这些活动在fiber架构中统称为“work”，来自render方法返回的每个React元素的数据被合并到fiber node树中，每个React元素都有一个相应的fiber node。与React元素不同，每次渲染过程，不会再重新创建fiber。这些可变的数据包含组件state和DOM。 我们之前讨论过，根据React元素的类型，框架需要执行不同的活动。在我们的示例应用程序中，对于class组件ClickCounter，它调用生命周期方法和render方法，而对于span Host 组件（DOM节点），它执行DOM更新。
 ##### 因此，每个React元素都会转换为相应类型的Fiber节点，用于描述需要完成的工作。
 
-#####可以这样认为：fiber作为一种数据结构，用于代表某些worker，换句话说，就是一个work单元，通过Fiber的架构，提供了一种跟踪，调度，暂停和中止工作的便捷方式。
+##### 可以这样认为：fiber作为一种数据结构，用于代表某些worker，换句话说，就是一个work单元，通过Fiber的架构，提供了一种跟踪，调度，暂停和中止工作的便捷方式。
 当React元素第一次转换为fiber节点时，React使用createElement返回的数据来创建fiber，这些代码在 ReactFiber.js 里面中，可以去了解。在随后的更新中，React重用fiber节点，并使用来自相应React元素的数据来更新必要的属性。如果不再从render方法返回相应的React元素，React可能还需要根据key来移动层次结构中的节点或删除它。
 
 
