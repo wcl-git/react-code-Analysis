@@ -1,11 +1,11 @@
 
 
-import type {ReactNodeList} from 'shared/ReactTypes';
+import type {ReactNodeList} from 'shared/ReactTypes'; // 类型定义
 
 import type {
   FiberRoot,
   Batch as FiberRootBatch,
-} from 'react-reconciler/src/ReactFiberRoot';
+} from 'react-reconciler/src/ReactFiberRoot'; // 类型定义 
 
 
 import type {Container} from './ReactDOMHostConfig'; // 容器类型定义
@@ -18,9 +18,9 @@ import * as ReactPortal from 'shared/ReactPortal';
 import ExecutionEnvironment from 'fbjs/lib/ExecutionEnvironment';
 import * as ReactGenericBatching from 'events/ReactGenericBatching'; // 事件常规批次处理
 import * as ReactControlledComponent from 'events/ReactControlledComponent'; // 受控组件的事件
-import * as EventPluginHub from 'events/EventPluginHub';
-import * as EventPluginRegistry from 'events/EventPluginRegistry';
-import * as EventPropagators from 'events/EventPropagators';
+import * as EventPluginHub from 'events/EventPluginHub';    // 事件
+import * as EventPluginRegistry from 'events/EventPluginRegistry'; // 事件
+import * as EventPropagators from 'events/EventPropagators'; // 事件
 import * as ReactInstanceMap from 'shared/ReactInstanceMap';
 import ReactVersion from 'shared/ReactVersion';
 import {ReactCurrentOwner} from 'shared/ReactGlobalSharedState';
@@ -130,6 +130,7 @@ type DOMContainer =
       _reactRootContainer: ?Root,
     });
 
+// 定义 Batch 数据类型
 type Batch = FiberRootBatch & {
   render(children: ReactNodeList): Work,
   then(onComplete: () => mixed): void,
@@ -145,6 +146,7 @@ type Batch = FiberRootBatch & {
 };
 
 // 定义一个批量处理  ReactBatch 构造函数， 这个函数不是很重要
+// 参数默认 ReactRoot 函数
 // 这里我们看一下 ReactRoot 做了什么， 创建一个节点容器，把这个实例赋值给  this._internalRoot
 // 这里不能调用 ReactRoot 里面的 prototype 上的方法
 function ReactBatch(root: ReactRoot) {
@@ -159,7 +161,8 @@ function ReactBatch(root: ReactRoot) {
   this._defer = true;
 }
 
-// render 方法，参数是 ReactNodeList，实例化一个 ReactWork， 调用事务更新，并返回 ReactWork 实例
+// render 方法，参数默认 ReactNodeList，
+// 实例化一个 ReactWork， 调用事务更新，并返回 ReactWork 实例
 // ReactWork 实例主要干啥的呢，跳到 ReactWork 看一下逻辑
 ReactBatch.prototype.render = function(children: ReactNodeList) {
   invariant(
@@ -171,7 +174,16 @@ ReactBatch.prototype.render = function(children: ReactNodeList) {
   const internalRoot = this._root._internalRoot; // 这里追溯源头，_internalRoot 来自 ReactRoot 里面
   const expirationTime = this._expirationTime;
   const work = new ReactWork(); // 实例一个 ReactWork
-  // 调度主事务更新 root，里面调用 createUpdate，enqueueUpdate，scheduleWork 这三个方法。可以自己去仔细看
+
+  // 调度主事务更新 root
+  // 更新已到过期时间的容器，里面逻辑：设置当前节点为 container.current, 获取父组件的上下文，
+  // 如果 container 上下文不存在，这个上下文就赋值给 container，否则 上下文赋值给 container 的父组件
+  // 调用更新节点 scheduleRootUpdate 方法
+  // scheduleRootUpdate 方法内部 调用 createUpdate 创建一个更新对象
+  // 调用 enqueueUpdate 排队更新
+  // 调用 scheduleWork 调度工作
+  // scheduleWork 包含的代码 是更新的逻辑，由于这里逻辑很多，这里先分析到这里
+  // 组件运行逻辑,这里逻辑就是生命周期，这是一大块
   DOMRenderer.updateContainerAtExpirationTime(  
     children,                 // ReactNodeList
     internalRoot,             // 容器 OpaqueRoot 内部节点
@@ -244,7 +256,13 @@ ReactBatch.prototype.commit = function() {
   }
 
   // 同步刷新此批到期时间之前的所有工作
+  
   this._defer = false;
+  // 刷新dom节点，俩个参数，一个是根节点，一个是过期时间
+  // 调用 performWorkOnRoot 里面各种判断
+  // 调用 performSyncWork 同步渲染过程
+  // 调用 finishRendering 渲染完成之后的回调
+  // 这里面包含很多更新的逻辑，需要多看几遍
   DOMRenderer.flushRoot(internalRoot, expirationTime); // 把执行完成的节点刷新到 virtual dom 对象中
 
   // 弹出 已经完成的 这批事务，进入下一批
@@ -281,7 +299,7 @@ type Work = {
   _didCommit: boolean,
 };
 
-// 一些回调函数
+// 就是一些回调函数
 function ReactWork() {
   this._callbacks = null;
   this._didCommit = false;

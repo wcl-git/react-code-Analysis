@@ -505,7 +505,14 @@ function ceiling(num: number, precision: number): number {
 }
 
 
-// 更新已到过期时间的容器
+// 更新已到过期时间的容器，里面逻辑：设置当前节点为 container.current, 获取父组件的上下文，
+// 如果 container 上下文不存在，这个上下文就赋值给 container，否则 上下文赋值给 container 的父组件
+// 调用更新节点 scheduleRootUpdate 方法
+// scheduleRootUpdate 方法内部 调用 createUpdate 创建一个更新对象
+// 调用 enqueueUpdate 排队更新
+// 调用 scheduleWork 调度工作
+// scheduleWork 包含的代码 是更新的逻辑，由于这里逻辑很多，另外一个js文件
+// 组件运行逻辑,这里逻辑就是生命周期，这是一大块
 function updateContainerAtExpirationTime(
   element: ReactNodeList,
   container: OpaqueRoot,

@@ -1718,6 +1718,11 @@ function performWork(
   finishRendering();
 }
 
+// 刷新dom节点，俩个参数，一个是根节点，一个是过期时间
+// 调用 performWorkOnRoot 里面各种判断
+// 调用 performSyncWork 同步渲染过程
+// 调用 finishRendering 渲染完成之后的回调
+// 这里面包含很多更新的逻辑，需要多看几遍
 function flushRoot(root: FiberRoot, expirationTime: ExpirationTime) {
   invariant(
     !isRendering,

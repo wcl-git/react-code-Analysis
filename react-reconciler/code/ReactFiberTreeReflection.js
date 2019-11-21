@@ -97,16 +97,11 @@ function assertIsMounted(fiber) {
   );
 }
 
-// 记忆完成高优先级的事务之后要继续的事务
-// 完成高优先级后在回来执行的工作单元
-// 函数名称直译：定位到用于 SlowPath 的当前 fiber， 
-// SlowPath 就是高优先级执行完之后在慢慢执行的事务
+
 export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
   let alternate = fiber.alternate; 
-  // 如果没有备用这个属性的fiber，直接返回当前 fiber
-  // 备份不存在 说明这个 fiber 就是当前执行的 fiber，
+
   if (!alternate) {
-    // 如果没有备用的，那么我们只需要检查它是否已安装
     const state = isFiberMountedImpl(fiber);
     invariant(
       state !== UNMOUNTED,
@@ -117,31 +112,25 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
     }
     return fiber;
   }
-  // 如过备份存在，说明 fiber 是之前被高优先级事务中断的，等高优先级事务完成，现在要继续原来的的事务
-  // 如果有两种可能的分支，我们将会循环找到根节点， 
-  // 查看根指向的路径
-  // 特殊情况。特殊处理
+
   let a = fiber;
   let b = alternate;
   while (true) { // 循环查找
     let parentA = a.return; // a.return 表示父节点
     let parentB = parentA ? parentA.alternate : null;
-    // 如果 findCurrentFiberUsingSlowPath 传入的 fiber 即没有父节点，也没有节点备份，退出循环
     if (!parentA || !parentB) {
       // We're at the root.
       break;
     }
     
-    // 完成返回的 子节点和 备份的子节点一致
     if (parentA.child === parentB.child) {
-      let child = parentA.child; // child 起始从 a 中开始
+      let child = parentA.child; 
       while (child) {
-        if (child === a) { // 如果当前 child 的指针指向 fiber
-          assertIsMounted(parentA);// 这里如果不是i 已经挂载的 则回抛出警告
+        if (child === a) { 
+          assertIsMounted(parentA);
           return fiber;
         }
-        if (child === b) { // 如果当前 child 的指针指向 alternate
-          // We've determined that B is the current branch.
+        if (child === b) { 
           assertIsMounted(parentA);
           return alternate;
         }
@@ -152,19 +141,14 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
       invariant(false, 'Unable to find node on an unmounted component.');
     }
 
-    // a.return 相当于 a 的父节点
     if (a.return !== b.return) {
-      // a.return 和 b.return 的指向不同的节点，假定两者没有交叉
-      // 所以把 a 赋值给 a.return， 把 b 赋值给 b.return
-      // 进入下一轮循环
+      
       a = parentA;
       b = parentB;
     } else {
-      // a.return 和 b.return 的指向相同的节点，我们就必须使用这个节点
-      // 遍历每一个  parent alternate 的子集，查找那个子节点属于哪一个集合
+      
       let didFindChild = false;
       let child = parentA.child;
-      // 遍历 当前 fiber
       while (child) {
         if (child === a) {
           didFindChild = true;
@@ -181,11 +165,8 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
         child = child.sibling;
       }
       
-      // fiber 找不到就继续遍历 alternate
       if (!didFindChild) {
-        // 搜索父B的子集合
         child = parentB.child;
-        // 遍历 alternate 
         while (child) {
           if (child === a) {
             didFindChild = true;
@@ -222,47 +203,37 @@ export function findCurrentFiberUsingSlowPath(fiber: Fiber): Fiber | null {
     'Unable to find node on an unmounted component.',
   );
   if (a.stateNode.current === a) { // stateNode ： fiber的 状态节点
-    // 我们已经确定 A 是当前的分支
     return fiber;
   }
-  // 否则 B 是当前的分支
   return alternate;
 }
 
-// 这个函数作用是获取 改变的节点
 export function findCurrentHostFiber(parent: Fiber): Fiber | null {
-  //  这里判断 parent 备份 alternate 这个字段是否为空，如果有备份这个字段不为空，则返回这个 fiber
-  // 目的就是确保 fiber 是已经完成的fiber
+  
   const currentParent = findCurrentFiberUsingSlowPath(parent); 
   if (!currentParent) {
     return null;
   }
 
-  // 接下来，我们将深入研究此组件以找到第一个hostcomponent/text。
-
   let node: Fiber = currentParent;
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText) { // HostComponent 5， HostText 6， 优先级
+    if (node.tag === HostComponent || node.tag === HostText) { // HostComponent 5， HostText 6， html元素或者文本
       return node;
-    } else if (node.child) { // 节点有第一个子节点，赋值继续循环
+    } else if (node.child) { 
       node.child.return = node;
       node = node.child;
       continue;
     }
-    // 第一次循环没有走上面两个条件，即没有子节点，且子节点的 tag 优先级 不是 6 或 5
-    // 这里全等的意思是 node 和 currentParent 对象是指向同一个实例地址
+    
     if (node === currentParent) {
       return null;
     }
-    // 如果当前节点没有兄弟节点，向上找父级
     while (!node.sibling) {
-      // 父节点不存在或者已经遍历到 currentParent 就停止
       if (!node.return || node.return === currentParent) {
         return null;
       }
       node = node.return;
     }
-    // 如果有兄弟节点。继续向下遍历
     node.sibling.return = node.return;
     node = node.sibling;
   }
